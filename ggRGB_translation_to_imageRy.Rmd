@@ -72,7 +72,6 @@ p_ggrgb <- ggRGB(rgb_veg, r = 1, g = 2, b = 3, stretch = "lin") +
   theme_minimal()
 
 print(p_ggrgb)
-ggsave("figures/ggrgb_direct.png", p_ggrgb, width=10, height=8, dpi=300)
 ```
 
 ### 5.2 Translating to imageRy Style
@@ -90,7 +89,6 @@ p_imagerystyle <- im.plotRGB(rgb_veg, r = 1, g = 2, b = 3,
   labs(subtitle = "Same functionality with imageRy-style interface")
 
 print(p_imagerystyle)
-ggsave("figures/imagery_style.png", p_imagerystyle, width=10, height=8, dpi=300)
 ```
 
 ### 5.3 Single Layer Visualization (im.ggplot)
@@ -105,7 +103,6 @@ p_ndvi_single <- ggplot() +
   theme_minimal()
 
 print(p_ndvi_single)
-ggsave("figures/ndvi_single.png", p_ndvi_single, width=10, height=8, dpi=300)
 ```
 
 ### 5.4 Multi-Layer Visualization Grid (2x2)
@@ -173,7 +170,6 @@ p_grid <- (p1 + p2) / (p3 + p4) +
   plot_layout(guides = 'collect')
 
 print(p_grid)
-ggsave("figures/multi_layer_grid.png", p_grid, width=12, height=10, dpi=300)
 ```
 ##Grid Interpretation:
 

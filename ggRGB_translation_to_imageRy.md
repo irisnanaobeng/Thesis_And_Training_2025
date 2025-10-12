@@ -77,10 +77,6 @@ print(p_ggrgb)
 
 ![](ggRGB_translation_to_imageRy_files/figure-gfm/ggRGB-direct-1.png)<!-- -->
 
-``` r
-ggsave("figures/ggrgb_direct.png", p_ggrgb, width=10, height=8, dpi=300)
-```
-
 ### 5.2 Translating to imageRy Style
 
 ``` r
@@ -101,10 +97,6 @@ print(p_imagerystyle)
 
 ![](ggRGB_translation_to_imageRy_files/figure-gfm/translate-imagery-1.png)<!-- -->
 
-``` r
-ggsave("figures/imagery_style.png", p_imagerystyle, width=10, height=8, dpi=300)
-```
-
 ### 5.3 Single Layer Visualization (im.ggplot)
 
 ``` r
@@ -121,10 +113,6 @@ print(p_ndvi_single)
 ```
 
 ![](ggRGB_translation_to_imageRy_files/figure-gfm/single-layer-1.png)<!-- -->
-
-``` r
-ggsave("figures/ndvi_single.png", p_ndvi_single, width=10, height=8, dpi=300)
-```
 
 ### 5.4 Multi-Layer Visualization Grid (2x2)
 
@@ -194,11 +182,6 @@ print(p_grid)
 ```
 
 ![](ggRGB_translation_to_imageRy_files/figure-gfm/multi-layer-grid-1.png)<!-- -->
-
-``` r
-ggsave("figures/multi_layer_grid.png", p_grid, width=12, height=10, dpi=300)
-```
-
 \##Grid Interpretation:
 
 Top-left: Pure NDVI showing vegetation health as a single metric
