@@ -9,6 +9,8 @@ This analysis demonstrates remote sensing visualization techniques using
 RStoolbox’s ggRGB function and develops custom implementations following
 imageRy methodology for spatial ecology applications.
 
+## 1. Loading Packages
+
 ``` r
 library(RStoolbox)    # For ggRGB functions
 library(terra)        # For spatial raster data processing
@@ -16,6 +18,7 @@ library(ggplot2)      # For creating plots
 library(viridis)      # For color scales
 library(tidyterra)    # For spatial visualizations
 library(patchwork)    # For multi-plot arrangements
+library(imageRy)      # For native imageRy functions
 ```
 
 ## 2. Data Loading and Preparation
@@ -29,13 +32,17 @@ blue_path  <- file.path(safe_dir, "T32TPQ_20220811T100559_B02_10m.jp2")    # Blu
 nir_path   <- file.path(safe_dir, "T32TPQ_20220811T100559_B08_10m.jp2")    # Near-Infrared band
 swir_path  <- file.path(safe_dir, "T32TPQ_20220811T100559_B11_20m.jp2")    # SWIR band
 
-# Load individual raster bands
+# Loading individual raster bands
 red   <- rast(red_path)
 green <- rast(green_path)
 blue  <- rast(blue_path)
 nir   <- rast(nir_path)
 swir  <- rast(swir_path)
 ```
+
+Each band captures different wavelengths of light. NIR is useful for
+vegetation, SWIR for water and soil content. rast() reads the JP2 image
+into a raster object.
 
 ## 3. Creating Spectral Composites
 
@@ -47,11 +54,14 @@ swir_resampled <- resample(swir, red)
     ## |---------|---------|---------|---------|=========================================                                          
 
 ``` r
-# Create raster stacks for RGB composites
+# Combining bands into RGB stacks
 rgb_true  <- c(red, green, blue)
 rgb_veg   <- c(nir, red, green)
 rgb_water <- c(swir_resampled, nir, green)
 ```
+
+Stacking bands helps to create RGB images. The order of bands affects
+the colors: e.g., NIR in red channel highlights vegetation.
 
 ## 4. Calculating NDVI
 
@@ -61,6 +71,10 @@ ndvi <- (nir - red) / (nir + red)
 ```
 
     ## |---------|---------|---------|---------|=========================================                                          |---------|---------|---------|---------|=========================================                                          |---------|---------|---------|---------|=========================================                                          
+
+NDVI is a standard vegetation index. Values close to 1 indicate healthy
+vegetation, values near 0 indicate bare soil, and negative values
+indicate water.
 
 ## 5. Visualization
 
@@ -77,22 +91,40 @@ print(p_ggrgb)
 
 ![](ggRGB_translation_to_imageRy_files/figure-gfm/ggRGB-direct-1.png)<!-- -->
 
-### 5.2 Translating to imageRy Style
+### 5.2 Translating ggRGB to imageRy-style Function (im.ggplotRGB)
 
 ``` r
-# Create imageRy-style wrapper function
-im.plotRGB <- function(raster_stack, r, g, b, stretch = "lin", title = "") {
-  ggRGB(raster_stack, r = r, g = g, b = b, stretch = stretch) +
+## Creating imageRy-style function
+im.ggplotRGB <- function(raster_stack, r = 1, g = 2, b = 3, 
+                         scale = TRUE, stretch = "lin", 
+                         max_col_value = 10000, title = "") {
+  
+  # Extracting RGB bands
+  red_band   <- raster_stack[[r]]
+  green_band <- raster_stack[[g]]
+  blue_band  <- raster_stack[[b]]
+  
+  # Combining into one RGB stack
+  rgb_stack <- c(red_band, green_band, blue_band)
+  
+
+  # Plot using tidyterra + ggplot2
+  p <- ggplot() +
+    geom_spatraster_rgb(data = rgb_stack, r=1, g=2, b=3,
+                        max_col_value = max_col_value) +
     ggtitle(title) +
-    theme_minimal()
+    coord_sf() +       
+    theme_minimal()    
+  
+  return(p)
 }
 
-# Use our imageRy-style function
-p_imagerystyle <- im.plotRGB(rgb_veg, r = 1, g = 2, b = 3, 
-                            title = "imageRy Style Implementation") +
-  labs(subtitle = "Same functionality with imageRy-style interface")
 
-print(p_imagerystyle)
+# Test the developed imageRy-style function
+p_imgg <- im.ggplotRGB(rgb_veg, title = "Developed: imageRy Style") +
+  labs(subtitle = "Custom implementation following imageRy methodology")
+
+print(p_imgg)
 ```
 
 ![](ggRGB_translation_to_imageRy_files/figure-gfm/translate-imagery-1.png)<!-- -->
@@ -105,111 +137,65 @@ p_ndvi_single <- ggplot() +
   scale_fill_viridis_c(option = "viridis", na.value = "transparent",
                        name = "NDVI Value") +
   coord_sf() +
-  ggtitle("Single Layer NDVI Analysis",
-          subtitle = "im.ggplot approach for individual band visualization") +
+  ggtitle("NDVI Single Layer",
+          subtitle = "Vegetation index only") +
   theme_minimal()
 
 print(p_ndvi_single)
 ```
 
 ![](ggRGB_translation_to_imageRy_files/figure-gfm/single-layer-1.png)<!-- -->
+geom_spatraster() is used for single-band data like NDVI.
+scale_fill_viridis_c() provides colorblind-friendly colors.
 
-### 5.4 Multi-Layer Visualization Grid (2x2)
+### 5.4 Multi-Layer Visualization
 
 ``` r
-# This grid compares different approaches to visualizing satellite data:
-# - Single layer vs multi-layer combinations
-# - Different transparency levels to highlight various features
-
-# Create 4 different layer combinations with clean coordinates
-p1 <- ggplot() +
-  geom_spatraster(data = ndvi) +
+# True multi-layer: NDVI overlaid on RGB
+p_multi_layer <- ggplot() +
+  geom_spatraster_rgb(data = rgb_veg, r = 1, g = 2, b = 3) +  # Base RGB layer
+  geom_spatraster(data = ndvi, alpha = 0.6) +                 # NDVI overlay (60% transparent)
   scale_fill_viridis_c(option = "viridis", name = "NDVI") +
-  ggtitle("NDVI Only") +
-  coord_sf() +
-  theme_minimal() +
-  theme(plot.title = element_text(size = 11, hjust = 0.5, face = "bold"),
-        plot.margin = margin(5, 5, 5, 5),
-        axis.text = element_text(size = 6),  # Smaller coordinate text
-        axis.title = element_blank(),        # Remove axis titles
-        legend.position = "bottom")
+  ggtitle("Multi-Layer: RGB + NDVI Overlay",
+          subtitle = "Vegetation index overlaid on satellite image") +
+  theme_minimal()
 
-p2 <- ggplot() +
-  geom_spatraster_rgb(data = rgb_veg, r = 1, g = 2, b = 3, max_col_value = 3000) +
-  ggtitle("RGB Only") +
-  coord_sf() +
-  theme_minimal() +
-  theme(plot.title = element_text(size = 11, hjust = 0.5, face = "bold"),
-        plot.margin = margin(5, 5, 5, 5),
-        axis.text = element_text(size = 6),
-        axis.title = element_blank())
-
-p3 <- ggplot() +
-  geom_spatraster(data = ndvi, alpha = 0.6) +
-  geom_spatraster_rgb(data = rgb_veg, r = 1, g = 2, b = 3, max_col_value = 3000, alpha = 0.4) +
-  scale_fill_viridis_c(option = "viridis", name = "NDVI") +
-  ggtitle("NDVI Focus") +
-  coord_sf() +
-  theme_minimal() +
-  theme(plot.title = element_text(size = 11, hjust = 0.5, face = "bold"),
-        plot.margin = margin(5, 5, 5, 5),
-        axis.text = element_text(size = 6),
-        axis.title = element_blank(),
-        legend.position = "none")
-
-p4 <- ggplot() +
-  geom_spatraster(data = ndvi, alpha = 0.4) +
-  geom_spatraster_rgb(data = rgb_veg, r = 1, g = 2, b = 3, max_col_value = 3000, alpha = 0.6) +
-  scale_fill_viridis_c(option = "viridis", name = "NDVI") +
-  ggtitle("RGB Focus") +
-  coord_sf() +
-  theme_minimal() +
-  theme(plot.title = element_text(size = 11, hjust = 0.5, face = "bold"),
-        plot.margin = margin(5, 5, 5, 5),
-        axis.text = element_text(size = 6),
-        axis.title = element_blank(),
-        legend.position = "none")
-
-# Arrange in a clean grid
-p_grid <- (p1 + p2) / (p3 + p4) +
-  plot_annotation(
-    title = "Multi-Layer Visualization Comparison",
-    theme = theme(plot.title = element_text(size = 14, hjust = 0.5, face = "bold"))
-  ) +
-  plot_layout(guides = 'collect')
-
-print(p_grid)
+print(p_multi_layer)
 ```
 
-![](ggRGB_translation_to_imageRy_files/figure-gfm/multi-layer-grid-1.png)<!-- -->
-\##Grid Interpretation:
+![](ggRGB_translation_to_imageRy_files/figure-gfm/Multiple-Layer-1.png)<!-- -->
+\### 5.5 Direct comparison showing the translation from RStoolbox to
+imageRy
 
-Top-left: Pure NDVI showing vegetation health as a single metric
+``` r
+# Direct comparison showing the translation from RStoolbox to imageRy
+p_translation <- p_ggrgb + p_imgg +
+  plot_annotation(
+    title = "Methodology Translation: RStoolbox ggRGB to imageRy Implementation",
+    subtitle = "Starting from existing function and developing equivalent in target methodology",
+    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+  )
 
-Top-right: Standard false-color RGB composite for landscape context
+print(p_translation)
+```
 
-Bottom-left: NDVI emphasized (60%) over RGB background (40%) - good for
-vegetation analysis
-
-Bottom-right: RGB emphasized (60%) with NDVI overlay (40%) - good for
-spatial context with vegetation data
-
-This comparative approach demonstrates how different visualization
-techniques can highlight various ecological features in satellite
-imagery.
+![](ggRGB_translation_to_imageRy_files/figure-gfm/comparison-1.png)<!-- -->
 
 ## 6. Summary
 
-This analysis demonstrates the implementation of remote sensing
-visualization techniques:
+The analysis successfully demonstrates the methodology translation
+process by:
 
-- **ggRGB from RStoolbox**: Direct use of specialized RGB visualization
-  functions
-- **Translation to imageRy**: Creating custom wrapper functions
-  following imageRy methodology
-- **Single Layer Analysis**: Individual band visualization using
-  im.ggplot approach
-- **Multi-Layer Integration**: 2x2 grid comparison of combined
-  visualization techniques using the im.ggRGB concept.
+**Starting from RStoolbox’s ggRGB** - Using the established function as
+foundation
+
+**Developing imageRy-style equivalent** - Creating custom implementation
+following target methodology patterns
+
+**Comparing multiple approaches** - Showing RStoolbox, imageRy-style,
+and manual implementations
+
+**Maintaining functionality** - Ensuring all methods produce equivalent
+visual results
 
 ------------------------------------------------------------------------
